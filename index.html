@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="css/index.css">
+    <title>Audio Player</title>
+  </head>
+  <body>
+    <div id="container">
+
+      <div id="trackbar-container">
+        <div id="trackbar"></div>
+        <div id="trackbar-highlight"></div>
+      </div>
+
+      <div id="controls">
+        <audio></audio>
+        <button class="material-icons">play_arrow</button>
+        <span id="currentTime">0:00</span> /
+        <span id="totalDuration">0:00</span>
+        <button id="playlist"type="button" name="button" class="material-icons">queue_music</button>
+        <span id="trackname"></span>
+      </div>
+      <div id="playlist-list" ></div>
+      <form id="input" method="post" action="/audio" enctype="multipart/form-data">
+        <input id="url-input" type="file" name="audioFile">
+        <button id="submit"type="submit" name="button" class="material-icons">input</button>
+      </form>
+
+    </div>
+  </body>
+
+  <script charset="utf-8">
+
+    const audioElement = document.querySelector('audio')
+    let httpRequest = new XMLHttpRequest()
+    const trackLength = document.getElementById('totalDuration')
+    const trackbarContainer = document.getElementById('trackbar-container')
+    const trackHighlight = document.getElementById('trackbar-highlight')
+    const timeLabel = document.getElementById('currentTime')
+    const trackbar = document.getElementById('trackbar')
+    trackbar.style.width =  '0%';
+    const playbtn = document.querySelector('button')
+    const playlist = document.getElementById('playlist')
+    const input = document.getElementById('url-input')
+    const trackname = document.getElementById('trackname')
+
+    let isPlaying = false
+    let trackPlaying
+
+    let progress
+    let selectedTime
+    let playListItems
+
+    var listContainer = document.getElementById('playlist-list')
+    var list = document.createElement('ul')
+    var listItem
+
+    listContainer.appendChild(list)
+
+    httpRequest.onreadystatechange = function(){
+      if(this.status == 200 && this.readyState == 4){
+        playListItems = JSON.parse(httpRequest.responseText)
+        console.log(playListItems)
+        audioElement.src = "audio/" + playListItems[0]
+
+        for(var i = 0; i < playListItems.length; i++){
+          listItem = document.createElement('li')
+          listItem.innerHTML = playListItems[i]
+          list.appendChild(listItem)
+          listItem.addEventListener('click', function(event){
+            trackname.innerHTML = event.target.innerHTML
+            audioElement.src = 'audio/' + event.target.innerHTML
+            progress = 0
+          })
+        }
+      };
+    }
+    httpRequest.open('GET','http://localhost:8080/audio', true)
+    httpRequest.send()
+
+
+    playlist.addEventListener('click', function(){
+
+      this.style.height = 'auto'
+    })
+
+    playbtn.addEventListener('click', function(){
+
+      console.log('duration:' + Math.round((audioElement.duration / 60) * 100)  / 100)
+      trackLength.innerHTML = ((audioElement.duration / 60).toFixed(2)).replace('.',':')
+      if(!isPlaying){
+        audioElement.play()
+        isPlaying = true
+
+        trackPlaying = setInterval(function(){
+            progress = (audioElement.currentTime / Math.round(audioElement.duration)) * 100
+            trackbar.style.width = progress + '%';
+
+            timeLabel.innerHTML = (audioElement.currentTime / 100).toFixed(2)
+
+            if( audioElement.ended ){
+              clearInterval(trackPlaying)
+              playbtn.innerHTML = "play_arrow"
+            }
+        },1000)
+
+        this.innerHTML = "pause"
+      }
+
+      else{
+        audioElement.pause()
+        clearInterval(trackPlaying)
+        isPlaying = false
+        this.innerHTML = "play_arrow"
+      }
+    })
+    trackbarContainer.addEventListener('click', function(event){
+      selectedTime = (event.offsetX /  this.offsetWidth) * Math.round(audioElement.duration)
+      // console.log(selectedTime)
+      progress = (event.offsetX / this.offsetWidth) * 100
+      trackbar.style.width = progress + '%';
+      audioElement.currentTime = (progress * audioElement.duration) / 100
+    })
+    trackbarContainer.addEventListener('mousemove', function(event){
+      progress = (event.offsetX / this.offsetWidth) * 100
+      // console.log(event.offsetX)
+      trackHighlight.style.width = progress + '%';
+    })
+
+  </script>
+
+</html>
